@@ -137,7 +137,7 @@ uint16_t midi_card_addr;
 
 bool using_hostfs = true;
 
-uint8_t MHZ = 8;
+uint8_t MHZ = 1;
 
 #ifdef TRACE
 bool trace_mode = false;
@@ -300,6 +300,7 @@ machine_dump(const char* reason)
 		return;
 	}
 
+	/*
 	if (dump_cpu) {
 		SDL_RWwrite(f, &regs.a, sizeof(uint8_t), 1);
 		SDL_RWwrite(f, &regs.xl, sizeof(uint8_t), 1);
@@ -309,7 +310,7 @@ machine_dump(const char* reason)
 		SDL_RWwrite(f, &regs.pc, sizeof(uint16_t), 1);
 	}
 	memory_save(f, dump_ram, dump_bank);
-
+*/
 	if (dump_vram) {
 		video_save(f);
 	}
@@ -1144,7 +1145,7 @@ main(int argc, char **argv)
 		else if (!strcmp(argv[0], "-rockwell")){
 			argc--;
 			argv++;
-			warn_rockwell = false;
+			//warn_rockwell = false;
 		} else {
 			usage();
 		}
@@ -1770,7 +1771,10 @@ emulator_loop(void *param)
 
 		if (video_get_irq_out() || via1_irq() || (has_via2 && via2_irq()) || (ym2151_irq_support && YM_irq()) || (has_midi_card && midi_serial_irq())) {
 //			printf("IRQ!\n");
-			irq6502();
+			irq6502(1);
+		}
+		else {
+			irq6502(0);
 		}
 
 		if (regs.pc == 0xffff) {

@@ -577,7 +577,7 @@ static void DEBUGExecCmd() {
 
 			if(!strcmp(reg, "pc")) {
 				regs.pc= number & 0xFFFF;
-				waiting = 0;
+				//waiting = 0;
 			}
 			if(!strcmp(reg, "a")) {
 				regs.a= number & 0x00FF;

@@ -16,7 +16,7 @@ else ifeq ($(OS),Windows_NT)
 	TARGET_WIN32=yes
 endif
 
-CFLAGS=-std=c11 -O3 -Wall -Werror -g $(shell $(SDL2CONFIG) --cflags) -Isrc/extern/include
+CFLAGS=-std=c11 -Ofast -funroll-loops -fomit-frame-pointer -fno-strict-aliasing -Wall -Werror -g $(shell $(SDL2CONFIG) --cflags) -Isrc/extern/include
 CXXFLAGS=-std=c++17 -O3 -Wall -Werror -Isrc/extern/ymfm/src
 LDFLAGS=$(shell $(SDL2CONFIG) --libs) -lm -lz
 
@@ -85,7 +85,7 @@ ifeq ($(FLUIDSYNTH),1)
 	CFLAGS+=-DHAS_FLUIDSYNTH
 endif
 
-_X16_OBJS = cpu/fake6502.o memory.o disasm.o video.o i2c.o smc.o rtc.o via.o serial.o ieee.o vera_spi.o audio.o vera_pcm.o vera_psg.o sdcard.o main.o debugger.o javascript_interface.o joystick.o rendertext.o keyboard.o icon.o timing.o wav_recorder.o testbench.o files.o cartridge.o iso_8859_15.o ymglue.o midi.o
+_X16_OBJS = bad6502/fake6502.o memory.o disasm.o video.o i2c.o smc.o rtc.o via.o serial.o ieee.o vera_spi.o audio.o vera_pcm.o vera_psg.o sdcard.o main.o debugger.o javascript_interface.o joystick.o rendertext.o keyboard.o icon.o timing.o wav_recorder.o testbench.o files.o cartridge.o iso_8859_15.o ymglue.o midi.o
 _X16_OBJS += extern/ymfm/src/ymfm_opm.o
 
 ifdef TARGET_WIN32
@@ -121,8 +121,8 @@ $(MAKECART_ODIR)/%.o: $(MAKECART_SDIR)/%.c
 	@mkdir -p $$(dirname $@)
 	$(CC) $(CFLAGS) -c $< -MD -MT $@ -MF $(@:%o=%d) -o $@
 
-cpu/tables.h cpu/mnemonics.h: cpu/buildtables.py cpu/6502.opcodes cpu/65c816.opcodes
-	cd cpu && python buildtables.py
+# cpu/tables.h cpu/mnemonics.h: cpu/buildtables.py cpu/6502.opcodes cpu/65c816.opcodes
+# 	cd cpu && python buildtables.py
 
 # Empty rules so that renames of header files do not trigger a failure to compile
 $(X16_SDIR)/%.h:;
