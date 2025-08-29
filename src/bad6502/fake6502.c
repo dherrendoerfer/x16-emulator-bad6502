@@ -358,14 +358,15 @@ void step6502()
 {
   uint8_t ticks=0;
   tick6502();
-  if (bus_addr > 0xFFFA)
+  ndelay20;
+  if (bus_addr > 0xFFF9)
     return;
 
   ticks=ticktable_65c02[data];
-  while (ticks--) {
+  while (--ticks) {
     tick6502();
     ndelay20;
-    if (bus_addr > 0xFFFA)
+    if (bus_addr > 0xFFF9)
       return;
   }
 }

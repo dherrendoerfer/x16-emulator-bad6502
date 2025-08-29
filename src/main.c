@@ -137,7 +137,7 @@ uint16_t midi_card_addr;
 
 bool using_hostfs = true;
 
-uint8_t MHZ = 1;
+uint8_t MHZ = 2;
 
 #ifdef TRACE
 bool trace_mode = false;
