@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
@@ -33,9 +35,8 @@ uint16_t opcode_addr, oldpc, reladdr, value;
 struct regs regs;
 uint8_t waiting = 1;
 
-// PI3 and Zero defs
-#define BCM2708_PERI_BASE        0x3F000000
-#define GPIO_BASE                (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
+// PI defs
+#define GPIO_BASE                (mmio_peri_base + 0x200000) /* GPIO controller */
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
 #define INP_GPIO(g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
@@ -67,6 +68,10 @@ uint8_t waiting = 1;
 extern uint8_t read6502(uint16_t address, uint8_t bank);
 extern void write6502(uint16_t address, uint8_t bank, uint8_t value);
 
+// MMIO base (detected)
+uint32_t mmio_peri_base;
+uint8_t pi_caps;
+
 int  mem_fd;
 void *gpio_map;
 
@@ -77,14 +82,51 @@ volatile uint32_t *gpio_o_set;
 volatile uint32_t *gpio_o_clear;
 uint8_t proc_init_done = 0;
 
-// For fake6502 compatibility (x16-emulator)
-//uint16_t pc;
-//uint8_t sp,a,x,y,status;
-
 uint32_t clockticks6502; //increases on transition from low to high
 static uint8_t irqstate = 0;
 
 // HELPERS 
+//
+// Detect Pi model to correctly map GPIO
+//
+void detectPi()
+{
+  int num;
+  int id_fd = 0;
+  char id_str[256];
+  bzero((void*)id_str,256);
+
+  if ((id_fd=open("/sys/firmware/devicetree/base/model",O_RDONLY)) < 0) {
+    printf("can't open /sys/firmware/devicetree/base/model\n");
+    exit(1);
+  }
+
+  if ((num=read(id_fd, id_str, sizeof(id_str))) < 0) {
+    printf("can't read /sys/firmware/devicetree/base/model\n");
+    exit(1);
+  }
+
+  close(id_fd);
+
+  if (strncmp(id_str, "Raspberry Pi Zero 2", 19) == 0) { 
+      mmio_peri_base = 0x3F000000;
+      pi_caps = 2;
+  } else if (strncmp(id_str, "Raspberry Pi 4 Model B", 22) == 0) { 
+      mmio_peri_base = 0xFE000000; 
+      pi_caps = 4;
+  } else if (strncmp(id_str, "Raspberry Pi 3 Model B Plus", 27) == 0) { 
+      mmio_peri_base = 0x3F000000; 
+      pi_caps = 3;
+  } else { 
+      //default
+      mmio_peri_base = 0x3F000000;
+      pi_caps = 3;
+      printf("Pi model not known please update cpu.c with the output of\n  cat /sys/firmware/devicetree/base/model");
+      printf(". Defaulting to Pi3");
+  } 
+
+    //printf("id:%s\n", id_str );
+}
 //
 // Set up a memory regions to access GPIO
 //
@@ -126,6 +168,9 @@ void init6502()
 #ifdef DEBUG
   printf("Init65C05\n");
 #endif
+
+  // Detects Pi model and set some constants
+  detectPi();
 
   // Set up gpio pointer for direct register access
   setup_io();
@@ -251,7 +296,7 @@ static uint32_t data = 0;
 static uint32_t tmp;
 static uint32_t vtmp;
 
-void step6502()
+void tick6502()
 {  
 #ifdef DEBUG
   printf("Step6502\n");
@@ -307,6 +352,22 @@ void step6502()
   #endif
 
   ndelay20;
+}
+
+void step6502()
+{
+  uint8_t ticks=0;
+  tick6502();
+  if (bus_addr > 0xFFFA)
+    return;
+
+  ticks=ticktable_65c02[data];
+  while (ticks--) {
+    tick6502();
+    ndelay20;
+    if (bus_addr > 0xFFFA)
+      return;
+  }
 }
 
 void exec6502(uint32_t tickcount)
